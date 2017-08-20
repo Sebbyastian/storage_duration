@@ -25,6 +25,7 @@
 
 allocated_push_back(int);
 automated_push_back(int);
+relocated_push_back(int);
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,12 +34,17 @@ int main(void) {
     int   *allocated      = {0}, automated[4096] = {0};
     size_t allocated_size = {0}, automated_size  = {0};
 
+    FILE  *relocated      = fopen("test", "wb+");
+    size_t relocated_size = {0};
+
     for (size_t x = 0; x < sizeof automated / sizeof *automated; x++) {
         push_back(int, allocated, allocated_size, rand());
         push_back(int, automated, automated_size, rand()); 
+        push_back(int, relocated, relocated_size, rand());
         putchar('.');
     }
 
     tear_down(int, allocated, allocated_size);
     tear_down(int, automated, automated_size);
+    tear_down(int, relocated, relocated_size);
 }

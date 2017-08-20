@@ -26,41 +26,50 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 typedef void *internal(void *base, size_t nelem, size_t size);
 internal allocated_internal;
 internal automated_internal;
-// internal relocated_internal;
 void *internal_push_back(void **, size_t *, size_t, void const *, size_t, internal *);
+int   external_push_back(FILE *,  size_t *, size_t, void const *, size_t);
 
 #ifndef COMPILE_STORAGE_DURATION_C
 #define allocated_push_back(T) \
- T *T##_allocated_push_back(T **base, size_t *nelem, size_t max, T value) {\
-     void *b = *base, *r = internal_push_back(&b, nelem, max, &value       \
-                                                , sizeof (T)               \
-                                                , allocated_internal);     \
-     if ((T *) b != *base) { *base = b; }                                  \
-     return r;                                                              }
+ int allocated_##T##_push_back(T **base, size_t *nelem, size_t max, T value) {\
+     void *b = *base;                                                         \
+     int   r = internal_push_back(&b, nelem, max, &value                      \
+                                                , sizeof (T)                  \
+                                                , allocated_internal);        \
+     if ((T *) b != *base) { *base = b; }                                     \
+     return r;                                                                 }
 #define automated_push_back(T) \
- T *T##_automated_push_back(T *base, size_t *nelem, size_t max, T value) {\
-     return internal_push_back(&(void *){base}, nelem, max, &value        \
-                                              , sizeof (T)                \
-                                              , automated_internal);       }
+ int automated_##T##_push_back(T *base, size_t *nelem, size_t max, T value) {\
+     return internal_push_back(&(void *){base}, nelem, max, &value           \
+                                              , sizeof (T)                   \
+                                              , automated_internal);          }
+#define relocated_push_back(T) \
+ int relocated_##T##_push_back(FILE *base, size_t *nelem, size_t max, T value) {\
+     return external_push_back(base, nelem, max, &value, sizeof (T));           }
 
 #define push_back(T, base, nelem, value) \
- _Generic(&base   , T **: T##_allocated_push_back((void *) &base, &nelem    \
-                                                                , SIZE_MAX  \
-                                                                / sizeof (T)\
-                                                                , value)    \
-                  , default:                                                \
- _Generic(&base[0], T *:  T##_automated_push_back( base, &nelem, sizeof base\
-                                                               / sizeof (T) \
-                                                               , value)))
+ _Generic(&base   , T **:    allocated_##T##_push_back((void *) &base, &nelem    \
+                                                                     , SIZE_MAX  \
+                                                                     / sizeof (T)\
+                                                                     , value)    \
+                  , default:                                                     \
+ _Generic(&base[0], FILE *:  relocated_##T##_push_back( base, &nelem, SIZE_MAX   \
+                                                                    / sizeof (T) \
+                                                                    , value)     \
+                  , T *:     automated_##T##_push_back( base, &nelem, sizeof base\
+                                                                    / sizeof (T) \
+                                                                    , value)))
 
-#define tear_down(T, base, nelem)      \
- free(_Generic(&base   , T **: base    \
-                       , default:      \
-      _Generic(&base[0], T *:  NULL)));\
+#define tear_down(T, base, nelem)                           \
+ free(_Generic(&base   , T **:    base                      \
+                       , default:                           \
+      _Generic(&base[0], FILE *:  fclose((void *) base) && 0\
+                       , T *:     NULL)));                  \
  nelem = 0 
 #else
 #include <stdint.h>

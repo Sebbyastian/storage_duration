@@ -51,3 +51,10 @@ void *internal_push_back(void **base, size_t *nelem, size_t max_nelem, void cons
          : *b;
 }
 
+int external_push_back(FILE *base, size_t *nelem, size_t max_nelem, void const *value, size_t size) {
+    return *nelem == max_nelem
+        || fseek(base, *nelem * size, SEEK_SET)
+        || fwrite(value, size, 1, base)
+        || !++*nelem;
+}
+
